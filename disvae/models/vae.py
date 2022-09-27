@@ -13,6 +13,8 @@ from .encoders import get_encoder
 from .decoders import get_decoder
 from .utilities import get_utility 
 
+from numpy import longdouble
+
 MODELS = ["Burgess"]
 UTILTIIES = ["Malloy"]
 
@@ -90,7 +92,9 @@ class VAE(nn.Module):
         latent_dist = self.encoder(x)
         latent_sample = self.reparameterize(*latent_dist)
         reconstruct = self.decoder(latent_sample)
-        util_input = torch.cat((latent_dist[0], latent_dist[1]), 1)
+        #util_input = torch.cat((latent_dist[0], latent_dist[1]), 1)
+        #util_input = torch.from_numpy(np.array(self.random_sample(x))).float()
+        util_input = latent_sample
         utility = self.utility(util_input)
         return reconstruct, latent_dist, latent_sample, utility 
 
@@ -121,10 +125,46 @@ class VAE(nn.Module):
         x : torch.Tensor
             Batch of data. Shape (batch_size, n_chan, height, width)
         """
-        #torch.exp(0.5 * logvar)
+        latent_dists = self.encoder(x)
 
-        latent_dist = self.encoder(x)
-        cov = np.diag(np.exp(latent_dist[1].detach().numpy().squeeze()) ** 2)
-        means = latent_dist[0].detach().numpy().squeeze()
-        latent_sample = np.random.multivariate_normal(means, cov)
-        return latent_sample
+        latent_samples = []
+
+        for latent_means, latent_logvars in zip(latent_dists[0], latent_dists[1]):
+            latent_sample = []
+            for mean, logvar in zip(latent_means, latent_logvars): # independent sampling due to horizontal covariance matrix
+                mean = mean.detach().numpy()
+                std = np.exp(0.5 * logvar.detach().numpy())
+
+                sample = np.random.normal(mean, std, 1)[0]
+                latent_sample.append(sample)
+            latent_samples.append(latent_sample)
+        
+        latent_samples = np.array(latent_samples)
+
+        return latent_samples
+
+        """
+        assert(False)
+
+        if(latent_dist[1].detach().numpy().shape[0] > 1):
+            latent_dist_1 = latent_dist[1].detach().numpy().squeeze()
+        else:
+            latent_dist_1 = latent_dist[1].detach().numpy()
+        
+        covs = []
+        for latent in latent_dist_1:
+            latent = np.clip(latent, None, 10)
+            covs.append(np.diag(np.exp(latent) ** 2))
+        covs = np.array(covs)
+        #covs = np.diag(np.exp(latent_dist[1].detach().numpy().squeeze()) ** 2)
+        
+        if(latent_dist[0].detach().numpy().shape[0] > 1):
+            means = latent_dist[0].detach().numpy().squeeze()
+        else:
+            means = latent_dist[0].detach().numpy()
+        
+        latent_samples = []
+        for mean, cov in zip(means, covs):
+            latent_samples.append(np.random.multivariate_normal(mean, cov))
+        latent_samples = np.array(latent_samples)
+        """

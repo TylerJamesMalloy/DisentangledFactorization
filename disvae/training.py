@@ -127,6 +127,7 @@ class Trainer():
         epoch_loss = 0.
         kwargs = dict(desc="Epoch {}".format(epoch + 1), leave=False,
                       disable=not self.is_progress_bar)
+                      
         with trange(len(data_loader), **kwargs) as t:
             for _, data in enumerate(data_loader):
                 iter_loss = self._train_iteration(data, utilities, storer, index)
@@ -150,7 +151,8 @@ class Trainer():
         storer: dict
             Dictionary in which to store important variables for vizualisation.
         """
-        batch_size, channel, height, width = data.size()
+        data = data[0] # image data, no utilities
+        #batch_size, channel, height, width = data.size()
         data = data.to(self.device)
         if index is not None: data = torch.unsqueeze(data[index,:], 0) 
         #if(index is not None and data_index != index): continue

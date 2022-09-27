@@ -150,16 +150,15 @@ class BetaHLoss(BaseLoss):
         storer = self._pre_call(is_train, storer)
         
         util_loss = _utility_loss(utilities, recon_utilities, util_loss=self.util_loss)
-        util_loss = util_loss * (64 * 64 * 3) # Multiply by image dimensionality 
+        util_loss = util_loss * (64 * 64 * 3) # Multiply by image dimensionality (for comparison with CNN methods trained to categorize stimuli)
         rec_loss = _reconstruction_loss(data, recon_data,
                                         storer=storer,
                                         distribution=self.rec_dist)
-        kl_loss = _kl_normal_loss(*latent_dist, storer)
+        kl_loss = 0 # _kl_normal_loss(*latent_dist, storer)
         #anneal_reg = (linear_annealing(0, 1, self.n_train_steps, self.steps_anneal) if is_train else 1)
         anneal_reg = 1
         loss = rec_loss + (self.upsilon * util_loss) + (anneal_reg * (self.beta * kl_loss))
         #print(" Util loss: ", (self.upsilon * util_loss), " rec loss ", rec_loss, " anneal ", anneal_reg, " kl loss ", (anneal_reg * (self.beta * kl_loss)))
-
         if storer is not None:
             storer['loss'].append(loss.item())
 
@@ -362,13 +361,14 @@ class BtcvaeLoss(BaseLoss):
        autoencoders." Advances in Neural Information Processing Systems. 2018.
     """
 
-    def __init__(self, n_data, alpha=1., beta=6., gamma=1., is_mss=True, **kwargs):
+    def __init__(self, n_data, alpha=1., beta=6., gamma=1., upsilon=1, is_mss=True, **kwargs):
         super().__init__(**kwargs)
         self.n_data = n_data
         self.beta = beta
         self.alpha = alpha
         self.gamma = gamma
         self.is_mss = is_mss  # minibatch stratified sampling
+        self.upsilon = upsilon 
 
     def __call__(self, data, recon_batch, utilities, recon_utilities, latent_dist, is_train, storer,
                  latent_sample=None):
@@ -404,6 +404,7 @@ class BtcvaeLoss(BaseLoss):
             storer['mi_loss'].append(mi_loss.item())
             storer['tc_loss'].append(tc_loss.item())
             storer['dw_kl_loss'].append(dw_kl_loss.item())
+            storer['u_loss'].append(util_loss.item())
             # computing this for storing and comparaison purposes
             _ = _kl_normal_loss(*latent_dist, storer)
 
@@ -414,9 +415,12 @@ def _utility_loss(utilities, recon_utilities, util_loss="mse", storer=None):
         loss = 0
     if(util_loss == "mse"):
         lf = nn.MSELoss()
+        if(len(recon_utilities) > 1):
+            utilities = utilities[0:recon_utilities.shape[0]] # needed at ends of pre-training batches when a smaller number of stimuli are inputted
         loss = lf(utilities, recon_utilities)
     elif(util_loss == "L1"):
         lf = nn.L1Loss()
+        utilities = utilities[0:recon_utilities.shape[0]]
         loss = lf(utilities, recon_utilities)
     else:
         loss = ValueError("Unkown Utility Loss: {}".format(util_loss))

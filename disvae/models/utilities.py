@@ -43,7 +43,7 @@ class UtilityMalloy(nn.Module):
         self.utility_out = 1 # number of utility predictions 
 
         # Fully connected layers
-        self.lin1 = nn.Linear(self.latent_dim * 2, hidden_dim)
+        self.lin1 = nn.Linear(self.latent_dim, hidden_dim)
         self.lin2 = nn.Linear(hidden_dim, hidden_dim)
 
         # Output layers for mean and variance

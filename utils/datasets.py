@@ -22,6 +22,7 @@ DATASETS_DICT = {"mnist": "MNIST",
                  "fashion": "FashionMNIST",
                  "dsprites": "DSprites",
                  "celeba": "CelebA",
+                 "celebt": "CelebT",
                  "chairs": "Chairs",
                  "niv": "Niv",
                  "marbles": "Marbles"}
@@ -270,6 +271,69 @@ class CelebA(DisentangledDataset):
 
         self.logger.info("Resizing CelebA ...")
         preprocess(self.train_data, size=type(self).img_size[1:])
+
+    def __getitem__(self, idx):
+        """Get the image of `idx`
+
+        Return
+        ------
+        sample : torch.Tensor
+            Tensor in [0.,1.] of shape `img_size`.
+
+        placeholder :
+            Placeholder value as their are no targets.
+        """
+        img_path = self.imgs[idx]
+        # img values already between 0 and 255
+        img = imread(img_path)
+
+        # put each pixel in [0.,1.] and reshape to (C x H x W)
+        img = self.transforms(img)
+
+        # no label so return 0 (note that can't return None because)
+        # dataloaders requires so
+        return img, 0
+
+
+class CelebT(DisentangledDataset):
+    """CelebT Dataset from [1], limited sample.
+
+    CelebFaces Attributes Dataset (CelebA) is a large-scale face attributes dataset
+    with more than 200K celebrity images, each with 40 attribute annotations.
+    The images in this dataset cover large pose variations and background clutter.
+    CelebA has large diversities, large quantities, and rich annotations, including
+    10,177 number of identities, and 202,599 number of face images.
+
+    Notes
+    -----
+    - Link : http://mmlab.ie.cuhk.edu.hk/projects/CelebA.html
+
+    Parameters
+    ----------
+    root : string
+        Root directory of dataset.
+
+    References
+    ----------
+    [1] Liu, Z., Luo, P., Wang, X., & Tang, X. (2015). Deep learning face
+        attributes in the wild. In Proceedings of the IEEE international conference
+        on computer vision (pp. 3730-3738).
+
+    """
+    urls = {"train": "None"}
+    files = {"train": "None"}
+    img_size = (3, 64, 64)
+    background_color = COLOUR_WHITE
+
+    def __init__(self, root=os.path.join(DIR, '../data/celebt'), **kwargs):
+        super().__init__(root, [transforms.ToTensor()], **kwargs)
+
+        self.train_data = "./data/celebt/" 
+        #self.imgs = np.load(self.train_data, allow_pickle=True)
+        self.imgs = glob.glob(self.train_data + '/*')
+    
+    def download(self):
+        return
 
     def __getitem__(self, idx):
         """Get the image of `idx`
