@@ -262,8 +262,8 @@ def main(args):
         #if(not os.path.exists(exp_dir)): os.mkdir(exp_dir)
         logger.info("Root directory for saving and loading experiments: {}".format(exp_dir))
 
-        #model = load_model(exp_dir, is_gpu=not args.no_cuda)
-        model = load_model(exp_dir + "/bandit_1K/")
+        model = load_model(exp_dir, is_gpu=not args.no_cuda)
+        #model = load_model(exp_dir + "/bandit_1K/")
 
         image_folders = ['./data/celebb/both/','./data/celebb/glasses/','./data/celebb/hats/','./data/celebb/neither/']
 

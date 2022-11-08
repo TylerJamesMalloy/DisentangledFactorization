@@ -1,4 +1,5 @@
 import argparse
+from cgi import test
 import logging
 import sys
 import os
@@ -46,6 +47,35 @@ ADDITIONAL_EXP = ['custom', "debug", "best_celeba", "best_dsprites"]
 EXPERIMENTS = ADDITIONAL_EXP + ["{}_{}".format(loss, data)
                                 for loss in LOSSES
                                 for data in DATASETS]
+
+from sklearn.metrics import mean_squared_error
+
+test_images = [[],[],[],[]]
+
+for images in os.listdir('./data/celebb/both'):
+    # check if the image ends with png or jpg or jpeg
+    if (images.endswith(".png") or images.endswith(".jpg")\
+        or images.endswith(".jpeg")):
+        # display
+        test_images[0].append(images)
+for images in os.listdir('./data/celebb/glasses'):
+    # check if the image ends with png or jpg or jpeg
+    if (images.endswith(".png") or images.endswith(".jpg")\
+        or images.endswith(".jpeg")):
+        # display
+        test_images[1].append(images)
+for images in os.listdir('./data/celebb/hats'):
+    # check if the image ends with png or jpg or jpeg
+    if (images.endswith(".png") or images.endswith(".jpg")\
+        or images.endswith(".jpeg")):
+        # display
+        test_images[2].append(images)
+for images in os.listdir('./data/celebb/neither'):
+    # check if the image ends with png or jpg or jpeg
+    if (images.endswith(".png") or images.endswith(".jpg")\
+        or images.endswith(".jpeg")):
+        # display
+        test_images[3].append(images)
 
 
 def parse_arguments(args_to_parse):
@@ -233,14 +263,16 @@ def main(args):
         
 
         base_dir = os.path.join(RES_DIR, name)
-        exp_dir = os.path.join(RES_DIR, name + "/bandit_1K/")
+        exp_dir = os.path.join(RES_DIR, name + "/bandit_rep/")
         #if(not os.path.exists(exp_dir)): os.mkdir(exp_dir)
-        logger.info("Root directory for saving and loading experiments: {}".format(exp_dir + "/bandit_10K/"))
+        logger.info("Root directory for saving and loading experiments: {}".format(exp_dir + "/bandit_rep/"))
         
         device = get_device(is_gpu=not args.no_cuda)
         
         model = load_model(base_dir, is_gpu=not args.no_cuda)
         model.eval()
+
+        data = pd.DataFrame()
 
         image_folders = ['./data/celebb/both/','./data/celebb/glasses/','./data/celebb/hats/','./data/celebb/neither/']
 
@@ -267,12 +299,55 @@ def main(args):
         utilities = np.array([0,0,0,0,0,0,0,0,0,0,0,0,0,0,50,0,0,50,50,0,0,0,0,0,0,0,50,75,50,50,50,50,75,50,50,50,75,25,75,25,50,75,50,25,50,50,50,50,50,50,50,75,50,25,50,25,75,25,50,50,50,50,50,50,50,50,50,50,25,25,25,50,25,50,75,25,25,25,75,25,25,25,75,75,50,75,75,75,75,75,75,75,75,25,25,25,25,25,25,75,75,25,25,25,75,75,75,0,0,50,50])
         utilities = torch.from_numpy(utilities).float()
 
-        trainer(train_loader,
-                utilities=utilities, 
-                epochs=args.epochs,
-                checkpoint_every=args.checkpoint_every,)
+        for block in range(1000):
 
-        save_model(model, exp_dir, metadata=vars(args))
+            # compare each categories' mean latent rep to each others 
+            samples = [[],[],[],[]]
+
+            for type in range(4):
+                for test_image in test_images[type]: 
+                    image_path = image_folders[type] + test_image
+                    image = read_image(image_path).unsqueeze(0).float()
+
+                    _, _, latent_sample, utility_pred = model(image)
+
+                    latent_sample = latent_sample.detach().numpy()[0]
+                    
+                    samples[type].append(latent_sample)
+                
+            samples = np.array(samples)
+
+            both_mean = np.mean(samples[0], axis=0)
+            glasses_mean = np.mean(samples[1], axis=0)
+            hats_mean = np.mean(samples[2], axis=0)
+            neither_mean = np.mean(samples[3], axis=0)
+
+            hat_rep_mse = mean_squared_error(hats_mean, neither_mean)
+            glasses_rep_mse = mean_squared_error(glasses_mean, neither_mean)
+            both_rep_mse = mean_squared_error(both_mean, neither_mean)
+
+            d = {"Training Block":block, "Representation Similarity to Neither":hat_rep_mse, "Type":"Hats"}
+            data = data.append(d, ignore_index=True)
+
+            d = {"Training Block":block, "Representation Similarity to Neither":glasses_rep_mse, "Type":"Glasses"}
+            data = data.append(d, ignore_index=True)
+
+            d = {"Training Block":block, "Representation Similarity to Neither":both_rep_mse, "Type":"Both"}
+            data = data.append(d, ignore_index=True)
+
+            trainer(train_loader,
+                    utilities=utilities, 
+                    epochs=1,
+                    checkpoint_every=args.checkpoint_every,)
+
+
+        data.to_pickle("./representationAnalysis.pkl")
+        #save_model(model, exp_dir, metadata=vars(args))
+
+        ax = sns.lineplot(x="Training Block", y="Representation Similarity to Neither", hue="Type", data=data)
+        plt.title("Model Percent of Correct")
+        plt.show()
+
 
 #  python .\bandit.py btcvae_celeba_ld5_b256
 

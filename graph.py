@@ -12,15 +12,19 @@ from matplotlib import pyplot as plt
 import seaborn as sns 
 from scipy.optimize import curve_fit
 
-data = pd.read_pickle("./bandit_results_new.pkl")
+data = pd.read_pickle("./representationAnalysis.pkl")
+
 print(data)
-ax = sns.lineplot(x="Episode", y="Utility Prediction Error", hue="Latent Size", data=data)
-plt.title("Model Percent of Correct")
-plt.show()
 
-assert(False)
 
-fig, axes = plt.subplots(1, 2)
+fig, axes = plt.subplots(1, 3)
+
+data["Representation Similarity to Neither"] = data["Representation Similarity to Neither"] / 1e8
+
+ax = sns.lineplot(x="Training Block", y="Representation Similarity to Neither", hue="Type", data=data)
+axes[2].set_xlabel('Bandit Training Block')
+axes[2].set_ylabel('Representation Difference (1e8)') 
+axes[2].set_title('Representation Difference by Training Block')
 
 colors = ["tab:orange", "tab:blue", "tab:green", "tab:red", "tab:purple", "tab:brown"]
 
@@ -80,13 +84,29 @@ for idx, latent in enumerate(latents):
     
     popt, pcov = curve_fit(power_law, x, y, p0=[1, 1], bounds=[[1e-8, 1e-8], [1e20, 1e20]])
 
-    plt.plot(x, power_law(x, *popt), label=int(latent), c =colors[idx])
-    plt.scatter(x, y, c =colors[idx], alpha=0.5)
+    axes[1].plot(x, power_law(x, *popt), label=int(latent), c =colors[idx])
+    axes[1].scatter(x, y, c =colors[idx], alpha=0.5)
     #plt.plot(x, y, c =colors[idx], alpha=0.5)
 
 
-plt.xlabel('Contextual Bandit Training Episode')
-plt.ylabel('Model Predictive Accuracy') 
-plt.title('Model Predictive Accuracy by Latent Space Size')
-plt.legend(title='Laten Dims') 
+axes[1].set_xlabel('Contextual Bandit Training Episode')
+axes[1].set_ylabel('Model Predictive Accuracy') 
+axes[1].set_title('Model Predictive Accuracy by Latent Space Size')
+
+axes[1].legend(title='Laten Dims') 
 plt.show()
+
+
+"""
+
+assert(False)
+
+data = pd.read_pickle("./bandit_results_new.pkl")
+print(data)
+ax = sns.lineplot(x="Episode", y="Utility Prediction Error", hue="Latent Size", data=data)
+plt.title("Model Percent of Correct")
+plt.show()
+
+assert(False)
+
+"""

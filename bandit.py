@@ -353,6 +353,33 @@ def main(args):
                     save_dir=exp_dir,
                     is_progress_bar=not args.no_progress_bar)
         """
+
+        left_image_folder = image_folders[0]
+        right_image_folder = image_folders[1]
+
+        left_image_idx = np.random.choice(range(25))
+        right_image_idx = np.random.choice(range(25))
+
+        left_image_path = left_image_folder + test_images[0][left_image_idx]
+        right_image_path = right_image_folder + test_images[1][right_image_idx]
+
+        left_image = read_image(left_image_path).unsqueeze(0).float()
+        right_image = read_image(right_image_path).unsqueeze(0).float()
+
+        recon, _, _, _ = model(left_image)
+
+        im = np.transpose((recon[0].detach().numpy() * 255).astype(np.uint8), [1, 2, 0]) 
+        im = Image.fromarray(im)
+        im.show()
+
+        recon, _, _, _ = model(right_image)
+
+        im = np.transpose((recon[0].detach().numpy() * 255).astype(np.uint8), [1, 2, 0]) 
+        im = Image.fromarray(im)
+        im.show()
+
+        assert(False)
+
         import datetime 
         for batch in range(1):
             hypotheses_space = np.zeros((args.latent_dim**2, args.latent_dim)) # assume 2 features relevant 
@@ -441,7 +468,7 @@ def main(args):
 
             save_model(model, exp_dir + "/bandit/", metadata=vars(args))
 
-        data.to_pickle("./bandit_results_best_ld10.pkl")
+        data.to_pickle("./representation_results_best_ld100.pkl")
 
     ax = sns.lineplot(x="Episode", y="Utility Prediction Error", hue="Latent Size", data=data)
     plt.title("Model Percent of Correct")
